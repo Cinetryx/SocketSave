@@ -1,0 +1,6 @@
+saved/
+build/
+*.o
+*.swp
+*.swo
+*.swn
