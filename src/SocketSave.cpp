@@ -20,6 +20,7 @@ Purpose: Simple interface to OpenNi cameras
 #include <sstream>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
 #include <sys/types.h> 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -56,8 +57,8 @@ void SocketSave::startServer(int portno) {
     listen(sockfd,5);
     clilen = sizeof(cli_addr);
 	cout << "Server listening on port: " << portno << endl;
-    while (capturing == true) {
-		cout << "wh" << capturing << endl;
+    while (capturing) {
+		cout << capturing << endl;
         newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
         if (newsockfd < 0) 
             error("ERROR on accept");
@@ -137,9 +138,10 @@ void SocketSave::processCapture (int sock) {
 	   n = write(sock,"point clouds saved",18);
 	   if (n < 0) error("ERROR writing to socket");
    }else if(strcmp("quit", buffer) == 0) {
-	   cout << capturing << endl;
-	   capturing = false;
-	   cout << capturing << endl;
+	   //cjild process does not have access to global vars
+	   //capturing = false;
+	   //dirty way but works without threading
+	   kill(getppid(), SIGKILL);
    }
    n = write(sock, msg.c_str(), 18);
    if (n < 0) error("ERROR writing to socket");
