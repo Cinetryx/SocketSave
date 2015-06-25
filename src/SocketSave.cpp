@@ -66,7 +66,7 @@ void SocketSave::startServer(int portno) {
         if (pid < 0)
             error("ERROR on fork");
         if (pid == 0)  {
-            close(sockfd);
+			close(sockfd);
             processCapture(newsockfd);
             exit(0);
         }
@@ -90,33 +90,41 @@ void SocketSave::processCapture (int sock) {
 		time_t curTime = time(NULL);
 		struct tm *aTime = localtime(&curTime);
 		stringstream ss;
+		
 		char timeBuff[21];
 		strftime(timeBuff, 21, DTFMT, aTime);
-		ss << "../saved/";
-		ss << "colour_" << timeBuff;
-		ss << ".png";
-		//examples for getting feeds from cam and depth
+		
+		ss << "FILE " << "colour_rpi1_" << timeBuff << ".png\n";
+		cout << ss.str() << endl;
 		Mat col;
 		getColour(col);
-		imwrite(ss.str(), col);
-		cout << "Saved colour image" << endl;
+		col = (col.reshape(0,1)); // to make it continuous
+		int  imgSize = col.total()*col.elemSize();
+		vector<uchar> buff;        
+		imencode(".png", col, buff);
+		cout << "Sending file info" << endl;		
+		n = write(sock, ss.str().c_str(), ss.str().length());
 		ss.str("");
+		ss << "SIZE " << imgSize << "\n";
+		cout << ss.str() << endl;
+	    n = write(sock, ss.str().c_str(), ss.str().length());
+        ss.str("");		
+		// Send data here
+	    //n = write(sock,col.data,imgSize);
+		n = write(sock, buff.data(), buff.size());
+		ss << "ENDOFFILE";
+		n = write(sock, ss.str().c_str(), ss.str().length());
+		cout << "sent colour image" << endl;
 
 		Mat pcl;
 		getPointCloud(pcl);
-		cout << getDepth(pcl, 100, 100, false) << endl;
-		//imwrite("../saved/cloud.png", pcl);
-		ss << "../saved/";
-		ss << "pcl_" << timeBuff;
-		ss<< ".ply";
-		cout << "saving point cloud" << endl;
-		ofstream outFile(ss.str().c_str());
-
-		if ( !outFile ) {
-			cerr << "Error opening output file: cloud.ply!" << endl;
-			exit(1);
-		}
-
+		ss.str("");
+		ss << "FILE " << "pcl_rpi1_" << timeBuff << ".ply\n";
+		cout << ss.str() << endl;
+		n = write(sock, ss.str().c_str(), ss.str().length());
+        ss.str("");
+		
+		stringstream outFile;
 		outFile << "ply" << endl;
 		outFile << "format ascii 1.0" << endl;
 		outFile << "element vertex 307200" << endl;
@@ -132,19 +140,25 @@ void SocketSave::processCapture (int sock) {
 			}
 		}
 		outFile << endl;
-		cout << "pointint cloud saved" << endl;
-	   if (n < 0) error("ERROR reading from socket");
-	   printf("Here is the message: %s\n",buffer);
-	   n = write(sock,"point clouds saved",18);
-	   if (n < 0) error("ERROR writing to socket");
+		ss << "SIZE " << outFile.str().length() << "\n";
+		cout << ss.str() << endl;
+		n = write(sock, ss.str().c_str(), ss.str().length());
+		
+		n = write(sock, outFile.str().c_str(), outFile.str().length());
+		ss.str("");
+		ss << "ENDOFSTREAM\n" << endl;
+		n = write(sock, ss.str().c_str(), ss.str().length());
+	    if (n < 0) error("ERROR writing to socket");
    }else if(strcmp("quit", buffer) == 0) {
-	   //cjild process does not have access to global vars
+	   //child process does not have access to global vars
 	   //capturing = false;
 	   //dirty way but works without threading
+	   close(sockfd);
+	   close(sockfd);
 	   kill(getppid(), SIGKILL);
    }
-   n = write(sock, msg.c_str(), 18);
    if (n < 0) error("ERROR writing to socket");
+   cout << "Closing connection" << endl;
    close(sock);
 }
 
