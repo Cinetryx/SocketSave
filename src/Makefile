@@ -8,7 +8,7 @@ OBJS=$(PROG).o
 
 .PHONY: all clean
 $(PROG): $(OBJS)
-	$(CC) -o $(PROG) $(OBJS) $(LDFLAGS)
+	$(CC) -o $(PROG) -O2 $(OBJS) $(LDFLAGS)
 %.o: %.cpp
 	$(CC) -c $(CFLAGS) $<
 all: 

@@ -95,24 +95,48 @@ void SocketSave::processCapture (int sock) {
 		strftime(timeBuff, 21, DTFMT, aTime);
 		
 		ss << "FILE " << "colour_rpi1_" << timeBuff << ".png\n";
+		n = write(sock, ss.str().c_str(), ss.str().length());
 		cout << ss.str() << endl;
-		Mat col;
+		
+        Mat col;
 		getColour(col);
-		col = (col.reshape(0,1)); // to make it continuous
-		int  imgSize = col.total()*col.elemSize();
+        imwrite("out.png", col);
+		
+        col = (col.reshape(0,1)); // to make it continuous
+		
+        int  imgSize = col.total()*col.elemSize();
 		vector<uchar> buff;        
 		imencode(".png", col, buff);
-		cout << "Sending file info" << endl;		
-		n = write(sock, ss.str().c_str(), ss.str().length());
 		ss.str("");
-		ss << "SIZE " << imgSize << "\n";
+        ifstream fileSize( "out.png", ios::binary | ios::ate);
+		ss << "SIZE " << fileSize.tellg() << "\n";
 		cout << ss.str() << endl;
 	    n = write(sock, ss.str().c_str(), ss.str().length());
         ss.str("");		
+		std::ifstream file("out.png", std::ifstream::binary);
+
+		file.seekg(0, std::ifstream::beg);
+
+		while(file.tellg() != -1) {
+			char *p = new char[1024];
+
+			bzero(p, 1024);
+			file.read(p, 1024);
+
+
+			n = write(sock, p, 1024);
+			if (n < 0) {
+				error("ERROR writing to socket");
+			}
+
+			delete p;
+		}
+
+		file.close();
 		// Send data here
 	    //n = write(sock,col.data,imgSize);
-		n = write(sock, buff.data(), buff.size());
-		ss << "ENDOFFILE";
+		//n = write(sock, buff.data(), buff.size());
+		ss << "ENDOFFILE\n" << endl;
 		n = write(sock, ss.str().c_str(), ss.str().length());
 		cout << "sent colour image" << endl;
 
